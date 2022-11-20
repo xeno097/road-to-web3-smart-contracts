@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 error Unauthorized();
 error FreeIcedCoffeeNotAllowed();
 error InvalidLargeIcedCoffeeTip();
+error InvalidWithdrawAddress();
 
 contract BuyMeAIcedCoffeeChallenge {
     struct Memo {
@@ -38,7 +39,7 @@ contract BuyMeAIcedCoffeeChallenge {
         return memos;
     }
 
-    ///  @dev buy an iced coffee for owner (sends an ETH tip and leaves a memo)
+    ///  @dev buy an iced coffee for owner (sends an ETH tip and leaves a memo).
     function buyARegularIcedCoffee(string memory _name, string memory _message) public payable {
         if (msg.value == 0) {
             revert FreeIcedCoffeeNotAllowed();
@@ -47,7 +48,7 @@ contract BuyMeAIcedCoffeeChallenge {
         _addMemo(_name, _message);
     }
 
-    /// @dev buy a large iced coffee for owner (sends an ETH tip and leaves a memo)
+    /// @dev buy a large iced coffee for owner for 0.003 ether (sends an ETH tip and leaves a memo).
     function buyALargeIcedCoffe(string memory _name, string memory _message) public payable {
         if (msg.value != 0.003 ether) {
             revert InvalidLargeIcedCoffeeTip();
@@ -70,7 +71,9 @@ contract BuyMeAIcedCoffeeChallenge {
 
     /// @dev updates the owner of the contract only if the account invoking the function is the actual owner of the contract.
     function updateContractOwner(address newOwner) public onlyOwner {
-        require(newOwner != address(0));
+        if (newOwner == address(0)) {
+            revert InvalidWithdrawAddress();
+        }
 
         owner = payable(newOwner);
     }

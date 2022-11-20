@@ -15,16 +15,19 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
     }
 
     // buyARegularIcedCoffee
+    function _arrangeBuyARegularIcedCoffeeTests(address account, uint256 tip) private {
+        vm.assume(tip != 0);
+        vm.deal(account, tip);
+        vm.prank(account);
+    }
+
     function testSuccessfullyCallsBuyARegularIcedCoffeeIfValueIsNot0(
         address account,
         string calldata input,
         uint256 tip
     ) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(tip != 0);
-        vm.deal(account, tip);
-        vm.prank(account);
+        _arrangeBuyARegularIcedCoffeeTests(account, tip);
 
         // Act
         buyMeACoffeeContract.buyARegularIcedCoffee{value: tip}(input, input);
@@ -32,10 +35,7 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
 
     function testCreatesAMemoCallingBuyARegularIcedCoffee(address account, string calldata input, uint256 tip) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(tip != 0);
-        vm.deal(account, tip);
-        vm.prank(account);
+        _arrangeBuyARegularIcedCoffeeTests(account, tip);
 
         // Act
         buyMeACoffeeContract.buyARegularIcedCoffee{value: tip}(input, input);
@@ -44,6 +44,7 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
 
         // Assert
         assertEq(memos.length, 1);
+        assertEq(memos[0].from, account);
         assertEq(memos[0].name, input);
         assertEq(memos[0].message, input);
     }
@@ -52,10 +53,7 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
         public
     {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(tip != 0);
-        vm.deal(account, tip);
-        vm.prank(account);
+        _arrangeBuyARegularIcedCoffeeTests(account, tip);
 
         // Assert
         vm.expectEmit(true, false, true, true);
@@ -79,11 +77,14 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
     }
 
     // buyALargeIcedCoffe
-    function testSuccessfullyCallsBuyALargeIcedCoffeIfValueIsNot3Eth(address account, string calldata input) public {
-        // Arrange
-        vm.assume(account != address(0));
+    function _arrangeBuyALargeIcedCoffeTests(address account) private {
         vm.deal(account, largeCoffeeTip);
         vm.prank(account);
+    }
+
+    function testSuccessfullyCallsBuyALargeIcedCoffeIfValueIsNot3Eth(address account, string calldata input) public {
+        // Arrange
+        _arrangeBuyALargeIcedCoffeTests(account);
 
         // Act
         buyMeACoffeeContract.buyALargeIcedCoffe{value: largeCoffeeTip}(input, input);
@@ -91,9 +92,7 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
 
     function testCreatesAMemoCallingBuyALargeIcedCoffe(address account, string calldata input) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.deal(account, largeCoffeeTip);
-        vm.prank(account);
+        _arrangeBuyALargeIcedCoffeTests(account);
 
         // Act
         buyMeACoffeeContract.buyALargeIcedCoffe{value: largeCoffeeTip}(input, input);
@@ -102,15 +101,14 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
 
         // Assert
         assertEq(memos.length, 1);
+        assertEq(memos[0].from, account);
         assertEq(memos[0].name, input);
         assertEq(memos[0].message, input);
     }
 
     function testEmitsNewMemoEventCallingBuyALargeIcedCoffe(address account, string calldata input) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.deal(account, largeCoffeeTip);
-        vm.prank(account);
+        _arrangeBuyALargeIcedCoffeTests(account);
 
         // Assert
         vm.expectEmit(true, false, true, true);
@@ -137,7 +135,7 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
     }
 
     // withdrawTips
-    function testAllowsOwnerToWithdrawContractBalance(address account1, uint256 tip) public {
+    function testAllowOwnerToWithdrawContractBalance(address account1, uint256 tip) public {
         // Arrange
         vm.assume(tip != 0);
 
@@ -145,37 +143,42 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
         string memory input = "";
 
         vm.prank(account2);
-        BuyMeAIcedCoffeeChallenge newOwnerBuyMeACoffeeContract = new BuyMeAIcedCoffeeChallenge();
+        BuyMeAIcedCoffeeChallenge withdrawContractInstance = new BuyMeAIcedCoffeeChallenge();
 
         vm.deal(account1, tip);
         vm.prank(account1);
 
-        newOwnerBuyMeACoffeeContract.buyARegularIcedCoffee{value: tip}(input, input);
+        withdrawContractInstance.buyARegularIcedCoffee{value: tip}(input, input);
 
         // Assert
-        newOwnerBuyMeACoffeeContract.withdrawTips();
+        withdrawContractInstance.withdrawTips();
 
         // Act
         assertEq(account2.balance, tip);
     }
 
     // updateContractOwner
-    function testAllowsOwnerToUpdateWithdrawalAddress(address account1) public {
+    function _arrangeUpdateContractOwnerTest(address account) private view {
+        vm.assume(account != address(0));
+        vm.assume(account != address(this));
+    }
+
+    function testAllowOwnerToUpdateWithdrawalAddress(address account) public {
         // Arrange
-        vm.assume(account1 != address(this));
-        BuyMeAIcedCoffeeChallenge newOwnerBuyMeACoffeeContract = new BuyMeAIcedCoffeeChallenge();
+        _arrangeUpdateContractOwnerTest(account);
+        BuyMeAIcedCoffeeChallenge changeOwnerContractInstance = new BuyMeAIcedCoffeeChallenge();
 
         // Assert
-        newOwnerBuyMeACoffeeContract.updateContractOwner(account1);
+        changeOwnerContractInstance.updateContractOwner(account);
 
         // Act
         vm.expectRevert(Unauthorized.selector);
-        newOwnerBuyMeACoffeeContract.updateContractOwner(account1);
+        changeOwnerContractInstance.updateContractOwner(account);
     }
 
     function testCannotUpdateWithdrawalAddressIfIsNotOwner(address account) public {
         // Arrange
-        vm.assume(account != address(this));
+        _arrangeUpdateContractOwnerTest(account);
         vm.prank(account);
 
         // Assert
@@ -183,5 +186,13 @@ contract BuyMeAIcedCoffeeChallengeTest is Test {
 
         // Act
         buyMeACoffeeContract.updateContractOwner(account);
+    }
+
+    function testCannotUpdateWithdrawalAddressTo0Address() public {
+        // Assert
+        vm.expectRevert(InvalidWithdrawAddress.selector);
+
+        // Act
+        buyMeACoffeeContract.updateContractOwner(address(0));
     }
 }
