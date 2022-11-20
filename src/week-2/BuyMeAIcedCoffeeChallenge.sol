@@ -39,7 +39,7 @@ contract BuyMeAIcedCoffeeChallenge {
         return memos;
     }
 
-    ///  @dev buy an iced coffee for owner (sends an ETH tip and leaves a memo).
+    ///  @dev Buy an iced coffee for owner (sends an ETH tip and leaves a memo).
     function buyARegularIcedCoffee(string memory _name, string memory _message) public payable {
         if (msg.value == 0) {
             revert FreeIcedCoffeeNotAllowed();
@@ -48,7 +48,7 @@ contract BuyMeAIcedCoffeeChallenge {
         _addMemo(_name, _message);
     }
 
-    /// @dev buy a large iced coffee for owner for 0.003 ether (sends an ETH tip and leaves a memo).
+    /// @dev Buy a large iced coffee for owner for 0.003 ether (sends an ETH tip and leaves a memo).
     function buyALargeIcedCoffe(string memory _name, string memory _message) public payable {
         if (msg.value != 0.003 ether) {
             revert InvalidLargeIcedCoffeeTip();
@@ -69,7 +69,7 @@ contract BuyMeAIcedCoffeeChallenge {
         require(owner.send(address(this).balance));
     }
 
-    /// @dev updates the owner of the contract only if the account invoking the function is the actual owner of the contract.
+    /// @dev Updates the owner of the contract only if the account invoking the function is the actual owner of the contract.
     function updateContractOwner(address newOwner) public onlyOwner {
         if (newOwner == address(0)) {
             revert InvalidWithdrawAddress();
