@@ -5,7 +5,7 @@ error Unauthorized();
 error FreeIcedCoffeeNotAllowed();
 error InvalidLargeIcedCoffeeTip();
 
-contract BuyMeACoffeeChallenge {
+contract BuyMeAIcedCoffeeChallenge {
     struct Memo {
         address from;
         uint256 timestamp;
@@ -49,7 +49,7 @@ contract BuyMeACoffeeChallenge {
 
     /// @dev buy a large iced coffee for owner (sends an ETH tip and leaves a memo)
     function buyALargeIcedCoffe(string memory _name, string memory _message) public payable {
-        if(msg.value != 0.003 ether){
+        if (msg.value != 0.003 ether) {
             revert InvalidLargeIcedCoffeeTip();
         }
 
