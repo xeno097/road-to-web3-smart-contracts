@@ -4,5 +4,5 @@
 
 The challenge required the developer to:
 
-- Use struct to add more stats to the characters (Level, Speed, Strength, Life, ...) instead of only storing the level in a mapping.
+- Use the struct type to add more stats to the characters (Level, Speed, Strength, Life, ...) instead of only storing the level in a mapping.
 - Use pseudo-random number generation to initialize the character stats (Note that the solution implemented in this contract is not truly random).
