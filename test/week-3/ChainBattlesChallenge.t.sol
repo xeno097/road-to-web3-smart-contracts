@@ -112,7 +112,7 @@ contract ChainBattlesChallengeTest is Test {
     }
 
     // getCharStats
-    function testGetsCharacterStats(address account, uint256 idx) public {
+    function testGetCharacterStats(address account, uint256 idx) public {
         // Arrange
         _skipTestIfAccountIsInvalid(account);
         vm.startPrank(account);
