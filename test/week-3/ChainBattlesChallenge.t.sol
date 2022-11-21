@@ -61,7 +61,7 @@ contract ChainBattlesChallengeTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotTrainANonExistingCharacter(address account) public {
+    function testCannotTrainNonExistentCharacter(address account) public {
         // Arrange
         vm.prank(account);
 
@@ -139,7 +139,7 @@ contract ChainBattlesChallengeTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotGetANonExistentCharacterStats() public {
+    function testCannotGetNonExistentCharacterStats() public {
         // Assert
         vm.expectRevert(NonExistentCharacter.selector);
 
