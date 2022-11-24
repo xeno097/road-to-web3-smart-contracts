@@ -10,16 +10,29 @@ contract BullAndBearChallengeTest is Test {
     uint64 fakeSubscriptionId = 1;
     address fakeVrfCoordinator = address(101);
     address fakePriceFeed = address(102);
+    address constant testAccount = 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097;
     BullAndBearChallenge bullAndBearContract;
 
     event TokenUrisUpdated(BullAndBearChallenge.MarketTrend indexed trend, uint256 indexed timestamp, uint256 uriIdx);
 
-    function setUp() public {
+    function _setUpPriceFeedMockedCall(int256 price) private {
         vm.mockCall(
             fakePriceFeed,
             abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), int256(1), block.timestamp, block.timestamp, uint80(1))
+            abi.encode(uint80(1), price, block.timestamp, block.timestamp, uint80(1))
         );
+    }
+
+    function _setUpVrfCoordinatorMockedCall(uint80 requestId) private {
+        vm.mockCall(
+            fakeVrfCoordinator,
+            abi.encodeWithSelector(VRFCoordinatorV2Interface.requestRandomWords.selector),
+            abi.encode(requestId)
+        );
+    }
+
+    function setUp() public {
+        _setUpPriceFeedMockedCall(1);
 
         bullAndBearContract = new BullAndBearChallenge(fakeSubscriptionId,fakeVrfCoordinator,fakePriceFeed);
 
@@ -55,11 +68,7 @@ contract BullAndBearChallengeTest is Test {
         // Arrange
         int256 expectedPrice = 10;
 
-        vm.mockCall(
-            fakePriceFeed,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), expectedPrice, block.timestamp, block.timestamp, uint80(1))
-        );
+        _setUpPriceFeedMockedCall(expectedPrice);
 
         // Act
         int256 price = bullAndBearContract.getLatestPrice();
@@ -106,17 +115,9 @@ contract BullAndBearChallengeTest is Test {
 
         int256 expectedPrice = -10;
 
-        vm.mockCall(
-            fakePriceFeed,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), expectedPrice, block.timestamp, block.timestamp, uint80(1))
-        );
+        _setUpPriceFeedMockedCall(expectedPrice);
 
-        vm.mockCall(
-            fakeVrfCoordinator,
-            abi.encodeWithSelector(VRFCoordinatorV2Interface.requestRandomWords.selector),
-            abi.encode(uint80(1))
-        );
+        _setUpVrfCoordinatorMockedCall(1);
 
         // Act
         bullAndBearContract.performUpkeep(abi.encode());
@@ -126,43 +127,10 @@ contract BullAndBearChallengeTest is Test {
         assertEq(uint256(bullAndBearContract.currentMarketTrend()), uint256(BullAndBearChallenge.MarketTrend.Bearish));
     }
 
-    function testPerformUpkeepUpdateDoesNotRequestNewRandomnessIfThereIsAnAlreadyPendingRequest() public {
-        // Arrange
-        skip(1 days);
-
-        int256 expectedPrice = 27;
-
-        vm.mockCall(
-            fakePriceFeed,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), -10, block.timestamp, block.timestamp, uint80(1))
-        );
-
-        vm.mockCall(
-            fakeVrfCoordinator,
-            abi.encodeWithSelector(VRFCoordinatorV2Interface.requestRandomWords.selector),
-            abi.encode(uint80(1))
-        );
-
-        bullAndBearContract.performUpkeep(abi.encode());
-
-        vm.mockCall(
-            fakePriceFeed,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), expectedPrice, block.timestamp, block.timestamp, uint80(1))
-        );
-
-        // Act
-        bullAndBearContract.performUpkeep(abi.encode());
-
-        // Assert
-        assertEq(bullAndBearContract.currentPrice(), expectedPrice);
-    }
-
     // rawFulfillRandomWords (fulfillRandomWords)
     function testFulFillRandomWordsUpdatesTokenUriWithBullishTrend() public {
         // Arrange
-        bullAndBearContract.safeMint(0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097);
+        bullAndBearContract.safeMint(testAccount);
 
         vm.prank(fakeVrfCoordinator);
 
@@ -181,21 +149,13 @@ contract BullAndBearChallengeTest is Test {
 
     function testFulFillRandomWordsUpdatesTokenUriWithBearishTrend() public {
         // Arrange
-        bullAndBearContract.safeMint(0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097);
+        bullAndBearContract.safeMint(testAccount);
 
         int256 expectedPrice = -10;
 
-        vm.mockCall(
-            fakePriceFeed,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(1), expectedPrice, block.timestamp, block.timestamp, uint80(1))
-        );
+        _setUpPriceFeedMockedCall(expectedPrice);
 
-        vm.mockCall(
-            fakeVrfCoordinator,
-            abi.encodeWithSelector(VRFCoordinatorV2Interface.requestRandomWords.selector),
-            abi.encode(uint80(1))
-        );
+        _setUpVrfCoordinatorMockedCall(1);
 
         bullAndBearContract.forcePerformUpkeep();
 
