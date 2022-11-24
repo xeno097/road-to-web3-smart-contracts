@@ -101,7 +101,7 @@ contract BullAndBearChallengeTest is Test {
     }
 
     // performUpkeep
-    function testPerformUpkeepMakesNoChangesIfIntervalHasNotPassed() public {
+    function testPerformUpkeepMakesNoChangesIfIntervalHasNotPassedYet() public {
         // Act
         bullAndBearContract.performUpkeep(abi.encode());
 
