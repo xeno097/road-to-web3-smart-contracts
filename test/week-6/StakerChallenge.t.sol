@@ -24,13 +24,13 @@ contract StakerChallengeTest is Test {
 
     function _fundAccountStakeAndSkipTime(address account, uint256 amount, uint256 time) private {
         _skipTestIfAccountIsInvalid(account);
-        
+
         vm.assume(0 < amount && amount <= 1000 ether);
         vm.deal(account, amount);
 
         vm.prank(account);
         stakerContract.stake{value: amount}();
-        
+
         skip(time);
     }
 
@@ -105,7 +105,7 @@ contract StakerChallengeTest is Test {
     // stake
     function testAllowsToStakeEth(address account, uint256 amount) public {
         // Arrange
-        _fundAccount(account,amount);
+        _fundAccount(account, amount);
         vm.prank(account);
 
         // Act
@@ -118,7 +118,7 @@ contract StakerChallengeTest is Test {
 
     function testEmitsStakeEvent(address account, uint256 amount) public {
         // Arrange
-        _fundAccount(account,amount);
+        _fundAccount(account, amount);
         vm.prank(account);
 
         // Assert
@@ -143,7 +143,7 @@ contract StakerChallengeTest is Test {
 
     function testCannotStakeAfterDepositDeadline(address account, uint256 amount) public {
         // Arrange
-        _fundAccount(account,amount);
+        _fundAccount(account, amount);
         vm.prank(account);
 
         skip(stakingPeriod);
@@ -213,7 +213,7 @@ contract StakerChallengeTest is Test {
 
     function testCannotWithdrawIfContractBalanceIsInsufficient(address account, uint256 amount) public {
         // Arrange
-        _fundAccountStakeAndSkipTime(account, amount,stakingPeriod);
+        _fundAccountStakeAndSkipTime(account, amount, stakingPeriod);
         vm.prank(account);
 
         // Assert
