@@ -58,6 +58,7 @@ contract StakerChallenge {
         _;
     }
 
+    /// @dev Set deadlines for the current staking session.
     function _setTimers() internal {
         depositDeadline = block.timestamp + depositPeriod;
         withdrawDeadline = depositDeadline + withdrawalPeriod;
