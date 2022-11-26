@@ -8,15 +8,39 @@ contract StakerChallengeTest is Test {
     StakerChallenge stakerContract;
     uint256 stakingPeriod = 3 minutes;
     uint256 withdrawalPeriod = 2 minutes;
+    uint256 fullStakingSessionTime;
 
     event Stake(address indexed sender, uint256 amount);
 
     function setUp() public {
+        fullStakingSessionTime = stakingPeriod + withdrawalPeriod;
         stakerContract = new StakerChallenge(stakingPeriod, withdrawalPeriod);
     }
 
+    function _skipTestIfAccountIsInvalid(address account) private view {
+        vm.assume(account != address(0) && account != 0x0000000000000000000000000000000000000009);
+        vm.assume(account.code.length == 0);
+    }
+
+    function _fundAccountStakeAndSkipTime(address account, uint256 amount, uint256 time) private {
+        _skipTestIfAccountIsInvalid(account);
+        
+        vm.assume(0 < amount && amount <= 1000 ether);
+        vm.deal(account, amount);
+
+        vm.prank(account);
+        stakerContract.stake{value: amount}();
+        
+        skip(time);
+    }
+
+    function _fundAccount(address account, uint256 amount) private {
+        vm.assume(amount != 0);
+        vm.deal(account, amount);
+    }
+
     // depositTimeLeft
-    function testCorrectValueIfDeadlineHasNotPassedYet(uint256 elapsedTime) public {
+    function testReturnsCorrectValueIfDepositDeadlineHasNotPassedYet(uint256 elapsedTime) public {
         // Arrange
         vm.assume(0 < elapsedTime && elapsedTime < stakingPeriod);
         uint256 expectedResult = stakingPeriod - elapsedTime;
@@ -29,7 +53,7 @@ contract StakerChallengeTest is Test {
         assertEq(time, expectedResult);
     }
 
-    function testReturns0IfDeadlineHasPassed(uint256 elapsedTime) public {
+    function testReturns0IfDepositDeadlineHasPassed(uint256 elapsedTime) public {
         // Arrange
         vm.assume(stakingPeriod <= elapsedTime && elapsedTime < 1000);
         skip(elapsedTime);
@@ -68,7 +92,6 @@ contract StakerChallengeTest is Test {
 
     function testReturns0IfWithdrawDeadlineHasPassed(uint256 elapsedTime) public {
         // Arrange
-        uint256 fullStakingSessionTime = stakingPeriod + withdrawalPeriod;
         vm.assume(fullStakingSessionTime <= elapsedTime && elapsedTime < 1000);
         skip(elapsedTime);
 
@@ -82,8 +105,7 @@ contract StakerChallengeTest is Test {
     // stake
     function testAllowsToStakeEth(address account, uint256 amount) public {
         // Arrange
-        vm.assume(amount != 0);
-        vm.deal(account, amount);
+        _fundAccount(account,amount);
         vm.prank(account);
 
         // Act
@@ -96,8 +118,7 @@ contract StakerChallengeTest is Test {
 
     function testEmitsStakeEvent(address account, uint256 amount) public {
         // Arrange
-        vm.assume(amount != 0);
-        vm.deal(account, amount);
+        _fundAccount(account,amount);
         vm.prank(account);
 
         // Assert
@@ -122,8 +143,7 @@ contract StakerChallengeTest is Test {
 
     function testCannotStakeAfterDepositDeadline(address account, uint256 amount) public {
         // Arrange
-        vm.assume(amount != 0);
-        vm.deal(account, amount);
+        _fundAccount(account,amount);
         vm.prank(account);
 
         skip(stakingPeriod);
@@ -160,8 +180,7 @@ contract StakerChallengeTest is Test {
     // withdraw
     function testWithdrawEth(address account, uint256 amount) public {
         // Arrange
-        vm.assume(account != address(0) && account != 0x0000000000000000000000000000000000000009);
-        vm.assume(account.code.length == 0);
+        _skipTestIfAccountIsInvalid(account);
         vm.assume(0 < amount && amount <= 1000 ether);
         vm.deal(account, amount);
         vm.deal(address(stakerContract), type(uint256).max - amount);
@@ -181,8 +200,7 @@ contract StakerChallengeTest is Test {
 
     function testCannotWithdrawOEth(address account) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(account.code.length == 0);
+        _skipTestIfAccountIsInvalid(account);
         vm.prank(account);
         skip(stakingPeriod);
 
@@ -195,34 +213,20 @@ contract StakerChallengeTest is Test {
 
     function testCannotWithdrawIfContractBalanceIsInsufficient(address account, uint256 amount) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(account.code.length == 0);
-        vm.assume(0 < amount && amount <= 1000 ether);
-        vm.deal(account, amount);
-        vm.startPrank(account);
-        stakerContract.stake{value: amount}();
-        skip(stakingPeriod);
+        _fundAccountStakeAndSkipTime(account, amount,stakingPeriod);
+        vm.prank(account);
 
         // Assert
         vm.expectRevert(bytes("Insufficient funds to process the transaction"));
 
         // Act
         stakerContract.withdraw();
-
-        // Cleanup
-        vm.stopPrank();
     }
 
     // execute
     function testExecuteIfStakingSessionHasPassed(address account, uint256 amount) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(account.code.length == 0);
-        vm.assume(0 < amount && amount <= 1000 ether);
-        vm.deal(account, amount);
-        vm.prank(account);
-        stakerContract.stake{value: amount}();
-        skip(stakingPeriod + withdrawalPeriod);
+        _fundAccountStakeAndSkipTime(account, amount, fullStakingSessionTime);
 
         // Act
         stakerContract.execute();
@@ -234,7 +238,7 @@ contract StakerChallengeTest is Test {
 
     function testCannotExecuteIfStakingSessionHasNotPassedYet(uint256 elapsedTime) public {
         // Arrange
-        vm.assume(0 < elapsedTime && elapsedTime < stakingPeriod + withdrawalPeriod);
+        vm.assume(0 < elapsedTime && elapsedTime < fullStakingSessionTime);
         skip(elapsedTime);
 
         // Assert
@@ -247,7 +251,7 @@ contract StakerChallengeTest is Test {
     function testCannotExecuteIfAlreadyCompleted(uint256 elapsedTime) public {
         // Arrange
         vm.assume(0 <= elapsedTime && elapsedTime < 1000);
-        skip(stakingPeriod + withdrawalPeriod + elapsedTime);
+        skip(fullStakingSessionTime + elapsedTime);
 
         stakerContract.execute();
 
@@ -261,13 +265,7 @@ contract StakerChallengeTest is Test {
     // lockedBalance
     function testReturnsTheBalanceOfTheVaultContract(address account, uint256 amount) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(account.code.length == 0);
-        vm.assume(0 < amount && amount <= 1000 ether);
-        vm.deal(account, amount);
-        vm.prank(account);
-        stakerContract.stake{value: amount}();
-        skip(stakingPeriod + withdrawalPeriod);
+        _fundAccountStakeAndSkipTime(account, amount, fullStakingSessionTime);
 
         // Act
         stakerContract.execute();
@@ -279,14 +277,7 @@ contract StakerChallengeTest is Test {
     // restartStakingSession
     function testRestartsTheStakingPeriod(address account, uint256 amount) public {
         // Arrange
-        vm.assume(account != address(0));
-        vm.assume(account.code.length == 0);
-        vm.assume(0 < amount && amount <= 1000 ether);
-        vm.deal(account, amount);
-        vm.prank(account);
-        stakerContract.stake{value: amount}();
-        skip(stakingPeriod + withdrawalPeriod);
-
+        _fundAccountStakeAndSkipTime(account, amount, fullStakingSessionTime);
         stakerContract.execute();
 
         // Act
@@ -296,7 +287,7 @@ contract StakerChallengeTest is Test {
         assertEq(stakerContract.stakingSession(), 2);
     }
 
-    function testCannotRestartTheStakingPeriodIfStakingSessionHasNotBeenCompleted(uint256 elapsedTime) public {
+    function testCannotRestartTheStakingPeriodIfStakingSessionHasNotBeenCompletedYet(uint256 elapsedTime) public {
         // Arrange
         vm.assume(0 <= elapsedTime && elapsedTime < 1000);
         skip(stakingPeriod);
