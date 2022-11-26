@@ -36,7 +36,7 @@ contract ChainBattlesChallengeTest is Test {
         assertEq(char.speed, 1);
         assertEq(char.strength, 1);
         assertEq(char.life, 5);
-        assert(
+        assertTrue(
             char.class == ChainBattlesChallenge.CharClass.Scout || char.class == ChainBattlesChallenge.CharClass.Warrior
         );
     }
@@ -131,9 +131,7 @@ contract ChainBattlesChallengeTest is Test {
         assertEq(char.speed, 1);
         assertEq(char.strength, 1);
         assertEq(char.life, 5);
-        assert(
-            char.class == ChainBattlesChallenge.CharClass.Scout || char.class == ChainBattlesChallenge.CharClass.Warrior
-        );
+        assertTrue(char.class == ChainBattlesChallenge.CharClass.Scout || char.class == ChainBattlesChallenge.CharClass.Warrior);
 
         // Clean up
         vm.stopPrank();
