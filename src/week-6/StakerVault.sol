@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4; //Do not change the solidity version as it negativly impacts submission grading
 
-contract StakerVaultContract {
+contract StakerVault {
     bool public completed;
     address owner;
 

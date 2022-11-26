@@ -16,7 +16,7 @@ contract StakerChallengeTest is Test {
     }
 
     // depositTimeLeft
-    function testCorrectValueIfDeadlineHasNotPassed(uint256 elapsedTime) public {
+    function testCorrectValueIfDeadlineHasNotPassedYet(uint256 elapsedTime) public {
         // Arrange
         vm.assume(0 < elapsedTime && elapsedTime < stakingPeriod);
         uint256 expectedResult = stakingPeriod - elapsedTime;
@@ -42,7 +42,7 @@ contract StakerChallengeTest is Test {
     }
 
     // withdrawTimeLeft
-    function testReturnsTheFullClaimPeriodIfDepositDeadlineHasNotPassedYet(uint256 elapsedTime) public {
+    function testReturnsTheFullWithdrawPeriodIfDepositDeadlineHasNotPassedYet(uint256 elapsedTime) public {
         // Arrange
         vm.assume(0 <= elapsedTime && elapsedTime < stakingPeriod);
 
@@ -129,7 +129,7 @@ contract StakerChallengeTest is Test {
         skip(stakingPeriod);
 
         // Assert
-        vm.expectRevert(bytes("Deposit deadline has been reached"));
+        vm.expectRevert(bytes("Deposit deadline reached!"));
 
         // Act
         stakerContract.stake{value: amount}();
@@ -238,7 +238,7 @@ contract StakerChallengeTest is Test {
         skip(elapsedTime);
 
         // Assert
-        vm.expectRevert(bytes("Claim deadline is not reached yet"));
+        vm.expectRevert(bytes("Withdraw deadline not reached!"));
 
         // Act
         stakerContract.execute();
@@ -252,7 +252,7 @@ contract StakerChallengeTest is Test {
         stakerContract.execute();
 
         // Assert
-        vm.expectRevert(bytes("Stake already completed!"));
+        vm.expectRevert(bytes("Staking session completed!"));
 
         // Act
         stakerContract.execute();
@@ -276,7 +276,7 @@ contract StakerChallengeTest is Test {
         assertEq(stakerContract.lockedBalance(), amount);
     }
 
-    // restartStakingPeriod
+    // restartStakingSession
     function testRestartsTheStakingPeriod(address account, uint256 amount) public {
         // Arrange
         vm.assume(account != address(0));
@@ -290,7 +290,7 @@ contract StakerChallengeTest is Test {
         stakerContract.execute();
 
         // Act
-        stakerContract.restartStakingPeriod();
+        stakerContract.restartStakingSession();
 
         // Assert
         assertEq(stakerContract.stakingSession(), 2);
@@ -302,9 +302,9 @@ contract StakerChallengeTest is Test {
         skip(stakingPeriod);
 
         // Assert
-        vm.expectRevert(bytes("Staking period must be over to perform this operation"));
+        vm.expectRevert(bytes("Staking session not completed!"));
 
         // Act
-        stakerContract.restartStakingPeriod();
+        stakerContract.restartStakingSession();
     }
 }

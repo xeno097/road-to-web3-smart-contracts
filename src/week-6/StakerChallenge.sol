@@ -8,23 +8,22 @@ contract StakerChallenge {
     mapping(address => uint256) public depositTimestamps;
 
     uint256 public constant rewardRatePerBlock = 0.002 ether;
-    uint256 public stakingPeriod;
+    uint256 public depositPeriod;
     uint256 public withdrawalPeriod;
     uint256 public depositDeadline;
     uint256 public withdrawDeadline;
-    uint256 public currentBlock = 0;
     uint256 public stakingSession = 0;
 
-    StakerVaultContract public stakerVaultContract;
+    StakerVault public stakerVaultContract;
 
     event Stake(address indexed sender, uint256 amount);
     event Received(address, uint256);
     event Execute(address indexed sender, uint256 amount);
 
-    constructor(uint256 _stakingPeriod, uint256 _withdrawalPeriod) {
-        stakerVaultContract = new StakerVaultContract();
+    constructor(uint256 _depositPeriod, uint256 _withdrawalPeriod) {
+        stakerVaultContract = new StakerVault();
         stakingSession = 1;
-        stakingPeriod = _stakingPeriod;
+        depositPeriod = _depositPeriod;
         withdrawalPeriod = _withdrawalPeriod;
         _setTimers();
     }
@@ -32,35 +31,35 @@ contract StakerChallenge {
     modifier depositDeadlineReached(bool requireReached) {
         uint256 timeRemaining = depositTimeLeft();
         if (requireReached) {
-            require(timeRemaining == 0, "Deposit deadline has not been reached yet");
+            require(timeRemaining == 0, "Deposit deadline not reached!");
         } else {
-            require(timeRemaining > 0, "Deposit deadline has been reached");
+            require(timeRemaining > 0, "Deposit deadline reached!");
         }
         _;
     }
 
-    modifier claimDeadlineReached(bool requireReached) {
+    modifier withdrawDeadlineReached(bool requireReached) {
         uint256 timeRemaining = withdrawTimeLeft();
         if (requireReached) {
-            require(timeRemaining == 0, "Claim deadline is not reached yet");
+            require(timeRemaining == 0, "Withdraw deadline not reached!");
         } else {
-            require(timeRemaining > 0, "Claim deadline has been reached");
+            require(timeRemaining > 0, "Withdraw deadline reached!");
         }
         _;
     }
 
     modifier notCompleted() {
-        require(!stakerVaultContract.completed(), "Stake already completed!");
+        require(!stakerVaultContract.completed(), "Staking session completed!");
         _;
     }
 
     modifier onlyCompleted() {
-        require(stakerVaultContract.completed(), "Staking period must be over to perform this operation");
+        require(stakerVaultContract.completed(), "Staking session not completed!");
         _;
     }
 
     function _setTimers() internal {
-        depositDeadline = block.timestamp + stakingPeriod;
+        depositDeadline = block.timestamp + depositPeriod;
         withdrawDeadline = depositDeadline + withdrawalPeriod;
     }
 
@@ -73,7 +72,7 @@ contract StakerChallenge {
         }
     }
 
-    /// @dev Returns the time left to claim locked ETH in the contract before the staking period completes.
+    /// @dev Returns the time left to withdrwaw locked ETH in the contract before the staking session completes.
     function withdrawTimeLeft() public view returns (uint256) {
         if (block.timestamp >= withdrawDeadline) {
             return (0);
@@ -84,7 +83,7 @@ contract StakerChallenge {
     }
 
     /// @dev Locks ETH to be staked in the contract.
-    function stake() public payable depositDeadlineReached(false) claimDeadlineReached(false) {
+    function stake() public payable depositDeadlineReached(false) withdrawDeadlineReached(false) {
         require(msg.value > 0, "Quantity to stake must be greater than 0");
 
         balances[msg.sender] = balances[msg.sender] + msg.value;
@@ -100,11 +99,11 @@ contract StakerChallenge {
     }
 
     /// @dev Withdraws the balance and accrued rewards of the sender to its address.
-    function withdraw() public depositDeadlineReached(true) claimDeadlineReached(false) notCompleted {
+    function withdraw() public depositDeadlineReached(true) withdrawDeadlineReached(false) notCompleted {
         require(balances[msg.sender] > 0, "You have no balance to withdraw!");
         uint256 individualBalance = balances[msg.sender];
-        uint256 stakingPeriods = stakingSession + 1 - depositTimestamps[msg.sender];
-        uint256 balanceRewards = (individualBalance + rewardRatePerBlock) * (stakingPeriods) ** 2;
+        uint256 depositPeriods = stakingSession + 1 - depositTimestamps[msg.sender];
+        uint256 balanceRewards = (individualBalance + rewardRatePerBlock) * (depositPeriods) ** 2;
         balances[msg.sender] = 0;
         depositTimestamps[msg.sender] = 0;
 
@@ -112,12 +111,16 @@ contract StakerChallenge {
 
         // Transfer all ETH via call! (not transfer) cc: https://solidity-by-example.org/sending-ether
         (bool sent,) = msg.sender.call{value: balanceRewards}("");
-        require(sent, "RIP; withdrawal failed :( ");
+        require(sent, "Withdrawal failed");
     }
 
     /// @dev Sends remaining funds into the vault contract after a completed staking session.
-    function execute() public claimDeadlineReached(true) notCompleted {
-        stakerVaultContract.complete{value: address(this).balance}();
+    function execute() public withdrawDeadlineReached(true) notCompleted {
+        uint256 amount = address(this).balance;
+
+        stakerVaultContract.complete{value: amount}();
+
+        emit Execute(msg.sender, amount);
     }
 
     /// @dev Returns the total value locked into the external vault.
@@ -125,8 +128,8 @@ contract StakerChallenge {
         return address(stakerVaultContract).balance;
     }
 
-    //// @dev Allows a user to start a new staking session by withdrawing ETH from the stakerVaultContract.
-    function restartStakingPeriod() external onlyCompleted {
+    //// @dev Allows a user to start a new staking session by withdrawing ETH from the StakerVault.
+    function restartStakingSession() external onlyCompleted {
         stakerVaultContract.withdraw();
         _setTimers();
         stakingSession++;
