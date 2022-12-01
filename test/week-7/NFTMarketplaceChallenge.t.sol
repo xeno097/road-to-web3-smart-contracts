@@ -24,7 +24,7 @@ contract NFTMarketplaceChallengeTest is Test {
     }
 
     // createToken
-    function testCreateTokenSendNewNFTToMarketPlaceAddress(address account, uint256 price) public {
+    function testCreateTokenSendNewNFTToMarketplaceAddress(address account, uint256 price) public {
         // Arrange
         _skipTestIfAccountIsInvalid(account);
         vm.assume(price != 0);
@@ -332,6 +332,11 @@ contract NFTMarketplaceChallengeTest is Test {
         // Act
         nftMarketplaceContract.listNFTForSale{value: marketplaceListFee}(0);
 
+        // Assert
+        NFTMarketplaceChallenge.ListedToken memory nft = nftMarketplaceContract.getListedTokenById(0);
+
+        assertTrue(nft.currentlyListed);
+
         // Clean up
         vm.stopPrank();
     }
@@ -354,11 +359,11 @@ contract NFTMarketplaceChallengeTest is Test {
         nftMarketplaceContract.listNFTForSale{value: marketplaceListFee}(0);
     }
 
-    function testCannotListForSaleAlreadyListedNFT(address account1) public {
+    function testCannotListForSaleAlreadyListedNFT(address account) public {
         // Arrange
-        _skipTestIfAccountIsInvalid(account1);
+        _skipTestIfAccountIsInvalid(account);
 
-        startHoax(account1, 2 * marketplaceListFee);
+        startHoax(account, 2 * marketplaceListFee);
         nftMarketplaceContract.createToken{value: marketplaceListFee}(tokenURI, itemPrice);
 
         // Assert
@@ -427,11 +432,11 @@ contract NFTMarketplaceChallengeTest is Test {
         nftMarketplaceContract.hideNFT(0);
     }
 
-    function testCannotHideAlreadyHiddenNFT(address account1) public {
+    function testCannotHideAlreadyHiddenNFT(address account) public {
         // Arrange
-        _skipTestIfAccountIsInvalid(account1);
+        _skipTestIfAccountIsInvalid(account);
 
-        startHoax(account1, marketplaceListFee);
+        startHoax(account, marketplaceListFee);
         nftMarketplaceContract.createToken{value: marketplaceListFee}(tokenURI, itemPrice);
         nftMarketplaceContract.hideNFT(0);
 
@@ -503,7 +508,7 @@ contract NFTMarketplaceChallengeTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotUpdateNFTPriceIfIsNotTheOwner(address account1, address account2) public {
+    function testCannotUpdateNFTPriceIfNotTheOwner(address account1, address account2) public {
         // Arrange
         _skipTestIfAccountIsInvalid(account1);
         _skipTestIfAccountIsInvalid(account2);
@@ -585,7 +590,7 @@ contract NFTMarketplaceChallengeTest is Test {
         assertEq(data.currentlyListed, true);
     }
 
-    function testCannotGetListedTokenByIdIfDoesNotExist(address account) public {
+    function testCannotGetListedTokenByIdIfNotExist(address account) public {
         // Arrange
         vm.prank(account);
 
