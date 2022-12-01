@@ -21,7 +21,7 @@ contract NFTMarketplaceChallenge is ERC721URIStorage {
     address payable owner;
 
     // Fee charged by the marketplace to to list an NFT.
-    uint256 listFee = 0.01 ether;
+    uint256 listFee;
 
     // Marketplace data for an NFT.
     struct ListedToken {
@@ -38,12 +38,18 @@ contract NFTMarketplaceChallenge is ERC721URIStorage {
     // Maps a tokenId to the NFT's marketplace data.
     mapping(uint256 => ListedToken) private idToListedToken;
 
-    constructor() ERC721("XN097NFTMarketplace", "XNFTM") {
+    constructor(uint256 _listFee) ERC721("XN097NFTMarketplace", "XNFTM") {
         owner = payable(msg.sender);
+        listFee = _listFee;
     }
 
     modifier onlyNFTOwner(uint256 tokenId) {
         require(idToListedToken[tokenId].owner == msg.sender, "Marketplace: Not the NFT Owner");
+        _;
+    }
+
+    modifier checkPrice(uint256 price) {
+        require(price > 0, "Marketplace: Invalid price");
         _;
     }
 
@@ -69,10 +75,7 @@ contract NFTMarketplaceChallenge is ERC721URIStorage {
     }
 
     /// @dev Creates the NFT's marketplace data.
-    function _createListedToken(uint256 tokenId, uint256 price) private {
-        // Just sanity check
-        require(price > 0, "Marketplace: Invalid price");
-
+    function _createListedToken(uint256 tokenId, uint256 price) private checkPrice(price) {
         // Update the mapping of tokenId's to Token details, useful for retrieval functions
         idToListedToken[tokenId] = ListedToken({
             tokenId: tokenId,
@@ -196,7 +199,7 @@ contract NFTMarketplaceChallenge is ERC721URIStorage {
     /// @dev Allows the NFT's owner to unpublish it from the marketplace.
     function hideNFT(uint256 tokenId) public onlyNFTOwner(tokenId) {
         ListedToken storage item = idToListedToken[tokenId];
-        require(item.currentlyListed, "Marketplace: Item already hidden");
+        require(item.currentlyListed, "Marketplace: NFT already hidden");
 
         // Send the NFT back to its owner and reset approvals
         _transfer(address(this), msg.sender, tokenId);
@@ -206,9 +209,7 @@ contract NFTMarketplaceChallenge is ERC721URIStorage {
     }
 
     /// @dev Allows an NFT's owner to update its price before listing it on the marketplace.
-    function updateNFTPrice(uint256 tokenId, uint256 _price) public onlyNFTOwner(tokenId) {
-        require(_price > 0, "Marketplace: Invalid price");
-
+    function updateNFTPrice(uint256 tokenId, uint256 _price) public onlyNFTOwner(tokenId) checkPrice(_price) {
         ListedToken storage item = idToListedToken[tokenId];
 
         require(!item.currentlyListed, "Marketplace: Can't change price of a listed item");
