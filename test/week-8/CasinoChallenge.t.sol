@@ -101,15 +101,18 @@ contract CasinoChallengeTest is Test {
     }
 
     // acceptBet
-    function testAcceptsBet(uint256 amount) public {
-        // Arrange
-        vm.assume(amount != 0);
+    function _setUpAcceptBetTests(uint256 amount) private {
         vm.assume(0 < amount && amount <= 100 ether);
 
         hoax(playerA, amount);
         casinoContract.proposeBet{value: amount}(hashA);
 
         hoax(playerB, amount);
+    }
+
+    function testAcceptsBet(uint256 amount) public {
+        // Arrange
+        _setUpAcceptBetTests(amount);
 
         // Act
         casinoContract.acceptBet{value: amount}(hashA, hashB);
@@ -123,13 +126,7 @@ contract CasinoChallengeTest is Test {
 
     function testEmitsBetAccepted(uint256 amount) public {
         // Arrange
-        vm.assume(amount != 0);
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
+        _setUpAcceptBetTests(amount);
 
         // Assert
         vm.expectEmit(true, true, false, true);
@@ -172,13 +169,7 @@ contract CasinoChallengeTest is Test {
 
     function testCannotAcceptAlreadyAcceptedBet(address account, uint256 amount) public {
         // Arrange
-        vm.assume(amount != 0);
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
+        _setUpAcceptBetTests(amount);
         casinoContract.acceptBet{value: amount}(hashA, hashB);
 
         hoax(account, amount);
@@ -208,17 +199,17 @@ contract CasinoChallengeTest is Test {
     }
 
     // revealRandomA
-    function testRevealRandomA(uint256 amount) public {
-        // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
+    function _setUpRevealRandomATests(uint256 amount) private {
+        _setUpAcceptBetTests(amount);
         casinoContract.acceptBet{value: amount}(hashA, hashB);
 
         vm.prank(playerA);
+    }
+
+    function testRevealRandomA(uint256 amount) public {
+        // Arrange
+        _setUpRevealRandomATests(amount);
+
         // Act
         casinoContract.revealRandomA(valA);
 
@@ -235,15 +226,7 @@ contract CasinoChallengeTest is Test {
 
     function testRevealRandomAemitsNumberRevealed(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
-
-        vm.prank(playerA);
+        _setUpRevealRandomATests(amount);
 
         // Assert
         vm.expectEmit(true, true, false, true);
@@ -256,15 +239,7 @@ contract CasinoChallengeTest is Test {
 
     function testCannotRevealRandomAWithWrongValue(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
-
-        vm.prank(playerA);
+        _setUpRevealRandomATests(amount);
 
         // Assert
         vm.expectRevert(bytes("Not a bet you placed or wrong value"));
@@ -291,20 +266,19 @@ contract CasinoChallengeTest is Test {
     }
 
     // revealRandomB
-    function testRevealRandomBBWins(uint256 amount) public {
-        // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+    function _setUpRevealRandomBTests(uint256 amount, uint256 currentHashB) private {
+        _setUpAcceptBetTests(amount);
+        casinoContract.acceptBet{value: amount}(hashA, currentHashB);
 
         vm.prank(playerA);
         casinoContract.revealRandomA(valA);
 
         vm.prank(playerB);
+    }
+
+    function testRevealRandomBBWins(uint256 amount) public {
+        // Arrange
+        _setUpRevealRandomBTests(amount, hashB);
 
         // Assert
         vm.expectEmit(true, true, true, true);
@@ -317,18 +291,7 @@ contract CasinoChallengeTest is Test {
 
     function testRevealRandomBAWins(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashBloses);
-
-        vm.prank(playerA);
-        casinoContract.revealRandomA(valA);
-
-        vm.prank(playerB);
+        _setUpRevealRandomBTests(amount, hashBloses);
 
         // Assert
         vm.expectEmit(true, true, true, true);
@@ -365,18 +328,7 @@ contract CasinoChallengeTest is Test {
 
     function testCannotRevealRandomBWithInvalidValue(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
-
-        vm.prank(playerA);
-        casinoContract.revealRandomA(valA);
-
-        vm.prank(playerB);
+        _setUpRevealRandomBTests(amount, hashB);
 
         // Assert
         vm.expectRevert(bytes("Wrong number"));
@@ -403,15 +355,14 @@ contract CasinoChallengeTest is Test {
     }
 
     // forfeit
+    function _setUpForfeitTests(uint256 amount) private {
+        _setUpAcceptBetTests(amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+    }
+
     function testAForfeit(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        _setUpForfeitTests(amount);
 
         vm.startPrank(playerA);
         casinoContract.revealRandomA(valA);
@@ -432,15 +383,11 @@ contract CasinoChallengeTest is Test {
 
     function testBForfeit(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        startHoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        _setUpForfeitTests(amount);
 
         skip(revealDeadline + 1);
+
+        vm.prank(playerB);
 
         // Assert
         vm.expectEmit(true, true, true, true);
@@ -449,9 +396,6 @@ contract CasinoChallengeTest is Test {
 
         // Act
         casinoContract.forfeit(hashA);
-
-        // Clean up
-        vm.stopPrank();
     }
 
     function testACannotForfeitNotAcceptedBet(uint256 amount) public {
@@ -470,13 +414,7 @@ contract CasinoChallengeTest is Test {
 
     function testACannotForfeitIfHasNotRevealedRandomA(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        _setUpForfeitTests(amount);
 
         vm.prank(playerA);
 
@@ -489,13 +427,7 @@ contract CasinoChallengeTest is Test {
 
     function testACannotForfeitIfBRevealDeadlineHasNotPassedYet(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        _setUpForfeitTests(amount);
 
         vm.startPrank(playerA);
         casinoContract.revealRandomA(valA);
@@ -514,6 +446,7 @@ contract CasinoChallengeTest is Test {
         // Arrange
         vm.assume(account != playerA && account != playerB);
         _skipTestIfAccountIsInvalid(account);
+
         vm.assume(0 < amount && amount <= 100 ether);
 
         hoax(playerA, amount);
@@ -533,13 +466,7 @@ contract CasinoChallengeTest is Test {
 
     function testBCannotForfeitIfARevealedRandomA(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
-
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        hoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        _setUpForfeitTests(amount);
 
         vm.prank(playerA);
         casinoContract.revealRandomA(valA);
@@ -555,13 +482,9 @@ contract CasinoChallengeTest is Test {
 
     function testBCannotForfeitIfARevealDeadlineHasNotExpired(uint256 amount) public {
         // Arrange
-        vm.assume(0 < amount && amount <= 100 ether);
+        _setUpForfeitTests(amount);
 
-        hoax(playerA, amount);
-        casinoContract.proposeBet{value: amount}(hashA);
-
-        startHoax(playerB, amount);
-        casinoContract.acceptBet{value: amount}(hashA, hashB);
+        vm.prank(playerB);
 
         // Assert
         vm.expectRevert(bytes("Player A reveal deadline not reached yet"));
