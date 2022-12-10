@@ -18,7 +18,7 @@ The smart contracts are grouped by week in the `./src` folder as any default Fou
 - [x] [week-2: How to Build "Buy Me a Coffee" DeFi dapp](./src/week-2/)
 - [x] [week-3: How to Make NFTs with On-Chain Metadata - Hardhat and JavaScript](./src/week-3/)
 - [ ] week-4: How to Create an NFT Gallery (Not a Smart Contract Challenge)
-- [x] [week-5: Connect APIs to your Smart Contracts using Chainlink](./src/week-4/)
+- [x] [week-5: Connect APIs to your Smart Contracts using Chainlink](./src/week-5/)
 - [x] [week-6: How to Build a Staking Dapp](./src/week-6/)
 - [x] [week-7: How to Build an NFT Marketplace from Scratch](./src/week-7/)
 - [x] [week-8: How to build a betting game on Optimism](./src/week-8/)
