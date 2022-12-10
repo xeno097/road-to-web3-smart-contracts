@@ -481,7 +481,7 @@ contract CasinoChallengeTest is Test {
         vm.prank(playerA);
 
         // Assert
-        vm.expectRevert(bytes("You can't forfeit a bet if you haven't reveald your number"));
+        vm.expectRevert(bytes("Can't forfeit a bet if you haven't revealed your number"));
 
         // Act
         casinoContract.forfeit(hashA);
@@ -547,7 +547,7 @@ contract CasinoChallengeTest is Test {
         vm.prank(playerB);
 
         // Assert
-        vm.expectRevert(bytes("You can't forfeit a bet if player A has reveald his number"));
+        vm.expectRevert(bytes("Can't forfeit bet if A revealed his number"));
 
         // Act
         casinoContract.forfeit(hashA);
