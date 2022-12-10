@@ -20,6 +20,10 @@ contract CasinoChallengeTest is Test {
 
     event BetAccepted(uint256 indexed _commitment, address indexed _sideA);
 
+    event NumberRevealed(uint256 indexed _commitment, address indexed player);
+
+    event BetSettled(uint256 indexed _commitment, address winner, address loser, uint256 value);
+
     function setUp() public {
         casinoContract = new CasinoChallenge(revealDeadline);
     }
@@ -201,5 +205,368 @@ contract CasinoChallengeTest is Test {
 
         // Act
         casinoContract.acceptBet{value: amount - 1}(hashA, hashB);
+    }
+
+    // revealRandomA
+    function testRevealRandomA(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+        // Act
+        casinoContract.revealRandomA(valA);
+
+        // Assert
+        (address sideA, uint256 value,, uint256 randomA,, bool revealed, bool accepted) =
+            casinoContract.proposedBet(hashA);
+
+        assertEq(sideA, playerA);
+        assertEq(value, amount);
+        assertEq(randomA, valA);
+        assertTrue(revealed);
+        assertTrue(accepted);
+    }
+
+    function testRevealRandomAemitsNumberRevealed(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+
+        // Assert
+        vm.expectEmit(true, true, false, true);
+
+        emit NumberRevealed(hashA, playerA);
+
+        // Act
+        casinoContract.revealRandomA(valA);
+    }
+
+    function testCannotRevealRandomAWithWrongValue(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+
+        // Assert
+        vm.expectRevert(bytes("Not a bet you placed or wrong value"));
+
+        // Act
+        casinoContract.revealRandomA(0);
+    }
+
+    function testCannotRevealRandomAForNotAceptedBet(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        startHoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        // Assert
+        vm.expectRevert(bytes("Bet has not been accepted yet"));
+
+        // Act
+        casinoContract.revealRandomA(valA);
+
+        // Clean up
+        vm.stopPrank();
+    }
+
+    // revealRandomB
+    function testRevealRandomBBWins(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectEmit(true, true, true, true);
+
+        emit BetSettled(hashA, playerB, playerA, amount);
+
+        // Act
+        casinoContract.revealRandomB(hashA, valB);
+    }
+
+    function testRevealRandomBAWins(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashBloses);
+
+        vm.prank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectEmit(true, true, true, true);
+
+        emit BetSettled(hashA, playerA, playerB, amount);
+
+        // Act
+        casinoContract.revealRandomB(hashA, valBloses);
+    }
+
+    function testCannotRevealRandomBForABetThatBDidNotAccept(address account, uint256 amount) public {
+        // Arrange
+        vm.assume(account != playerA);
+        _skipTestIfAccountIsInvalid(account);
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(account, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectRevert(bytes("Not a bet you accepted or wrong value"));
+
+        // Act
+        casinoContract.revealRandomB(hashA, valB);
+    }
+
+    function testCannotRevealRandomBWithInvalidValue(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectRevert(bytes("Wrong number"));
+
+        // Act
+        casinoContract.revealRandomB(hashA, 0);
+    }
+
+    function testCannotRevealRandomBBeforeAReveal(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        startHoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        // Assert
+        vm.expectRevert(bytes("Player A has not revealed its number yet"));
+
+        // Act
+        casinoContract.revealRandomB(hashA, valB);
+    }
+
+    // forfeit
+    function testAForfeit(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.startPrank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        skip(revealDeadline + 1);
+
+        // Assert
+        vm.expectEmit(true, true, true, true);
+
+        emit BetSettled(hashA, playerA, playerB, amount);
+
+        // Act
+        casinoContract.forfeit(hashA);
+
+        // Clean up
+        vm.stopPrank();
+    }
+
+    function testBForfeit(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        startHoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        skip(revealDeadline + 1);
+
+        // Assert
+        vm.expectEmit(true, true, true, true);
+
+        emit BetSettled(hashA, playerB, playerA, amount);
+
+        // Act
+        casinoContract.forfeit(hashA);
+
+        // Clean up
+        vm.stopPrank();
+    }
+
+    function testACannotForfeitNotAcceptedBet(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        startHoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        // Assert
+        vm.expectRevert(bytes("Can't forfeit a bet that has not been accepted yet"));
+
+        // Act
+        casinoContract.forfeit(hashA);
+    }
+
+    function testACannotForfeitIfHasNotRevealedRandomA(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+
+        // Assert
+        vm.expectRevert(bytes("You can't forfeit a bet if you haven't reveald your number"));
+
+        // Act
+        casinoContract.forfeit(hashA);
+    }
+
+    function testACannotForfeitIfBRevealDeadlineHasNotPassedYet(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.startPrank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        // Assert
+        vm.expectRevert(bytes("Player B reveal deadline not reached yet"));
+
+        // Act
+        casinoContract.forfeit(hashA);
+
+        // Clean up
+        vm.stopPrank();
+    }
+
+    function testBCannotForfeitNotAcceptedBet(address account, uint256 amount) public {
+        // Arrange
+        vm.assume(account != playerA && account != playerB);
+        _skipTestIfAccountIsInvalid(account);
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(account, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectRevert(bytes("Not your bet"));
+
+        // Act
+        casinoContract.forfeit(hashA);
+    }
+
+    function testBCannotForfeitIfARevealedRandomA(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        hoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        vm.prank(playerA);
+        casinoContract.revealRandomA(valA);
+
+        vm.prank(playerB);
+
+        // Assert
+        vm.expectRevert(bytes("You can't forfeit a bet if player A has reveald his number"));
+
+        // Act
+        casinoContract.forfeit(hashA);
+    }
+
+    function testBCannotForfeitIfARevealDeadlineHasNotExpired(uint256 amount) public {
+        // Arrange
+        vm.assume(0 < amount && amount <= 100 ether);
+
+        hoax(playerA, amount);
+        casinoContract.proposeBet{value: amount}(hashA);
+
+        startHoax(playerB, amount);
+        casinoContract.acceptBet{value: amount}(hashA, hashB);
+
+        // Assert
+        vm.expectRevert(bytes("Player A reveal deadline not reached yet"));
+
+        // Act
+        casinoContract.forfeit(hashA);
     }
 }
